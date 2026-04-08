@@ -1,258 +1,417 @@
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
+import { useEffect, useRef, useState } from "react";
+import ProgressTracker from "./ProgressTracker";
 
-/* ── Circular Score Ring ───────────────────────────────────── */
-function ScoreRing({ score, max = 100, size = 190, stroke = 12 }) {
+/* ── Score Ring ── */
+function ScoreRing({ score, size = 120, stroke = 9, arcOffset }) {
   const cx = size / 2;
-  const cy = size / 2;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / max) * circumference;
+  const r  = 45;
 
-  let color = "var(--accent-emerald)";
-  if (score < 40) color = "var(--accent-rose)";
-  else if (score < 70) color = "var(--accent-amber)";
+  let color = "#22c55e";
+  if (score < 50) color = "#ef4444";
+  else if (score < 80) color = "#eab308";
 
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      {/* SVG ring — rotated so arc starts at 12 o'clock */}
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}
-      >
-        {/* Track */}
-        <circle cx={cx} cy={cy} r={radius}
-          fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
-        {/* Filled arc */}
-        <circle cx={cx} cy={cy} r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 1s ease-out" }}
-        />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+        style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={stroke} />
+        <circle cx={cx} cy={cx} r={r} fill="none"
+          stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={283}
+          strokeDashoffset={arcOffset !== undefined ? arcOffset : 283}
+          style={{ transition: "stroke-dashoffset 0.8s ease-out" }} />
       </svg>
-
-      {/* Score label — precisely centered */}
       <div style={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        lineHeight: 1,
-        gap: "4px",
+        position: "absolute", inset: 0,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        lineHeight: 1, gap: 2,
       }}>
-        <span style={{
-          color,
-          fontSize: "2.75rem",
-          fontWeight: 800,
-          letterSpacing: "-0.03em",
-          textShadow: `0 0 20px color-mix(in srgb, ${color} 40%, transparent)`,
-        }}>
-          {score}
-        </span>
-        <span style={{
-          color: "var(--text-muted)",
-          fontSize: "0.8rem",
-          fontWeight: 700,
-          letterSpacing: "0.08em",
-        }}>
-          / 100
-        </span>
+        <span className="tabular-nums" style={{ fontSize: "1.9rem", fontWeight: 800, letterSpacing: "-0.04em", color, fontVariantNumeric: "tabular-nums" }}>{score}</span>
+        <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 500, letterSpacing: "0.06em" }}>/100</span>
       </div>
     </div>
   );
 }
 
+/* ── Score Card ── */
+function ScoreCard({ title, score, feedback, icon, accent, barsVisible }) {
+  const scorePercent = (score / 10) * 100;
 
-/* ── Mini Score Card ───────────────────────────────────────── */
-function ScoreCard({ title, score, feedback, icon, accentColor }) {
   return (
-    <div className="glass-card p-6 flex flex-col gap-4 h-full hover:-translate-y-1 transition-transform duration-300">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-xl flex items-center justify-center shadow-inner"
-            style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${accentColor} 20%, transparent)` }}>
+    <div className="card-2" style={{ padding: "18px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <span style={{
+            width: 32, height: 32, borderRadius: 8, display: "flex",
+            alignItems: "center", justifyContent: "center",
+            background: `${accent}12`, border: `1px solid ${accent}20`,
+          }}>
             {icon}
           </span>
-          <h3 className="text-[15px] font-bold tracking-wide" style={{ color: "var(--text-primary)" }}>{title}</h3>
+          <span style={{ fontWeight: 600, fontSize: 13.5, color: "var(--text-1)" }}>{title}</span>
         </div>
-        <div className="text-right">
-          <span className="text-2xl font-extrabold" style={{ color: accentColor }}>
-            {score}
-          </span>
-          <span className="text-xs font-medium ml-0.5" style={{ color: "var(--text-muted)" }}>/10</span>
-        </div>
+        <span className="tabular-nums" style={{ fontWeight: 800, fontSize: 18, color: accent }}>
+          {score}<span style={{ fontSize: 11, fontWeight: 500, color: "var(--text-3)" }}>/10</span>
+        </span>
       </div>
-      {/* Score bar */}
-      <div className="h-1.5 rounded-full w-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-        <div className="h-full rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${(score / 10) * 100}%`, background: accentColor, boxShadow: `0 0 10px ${accentColor}` }} />
+      <div className="bar-track">
+        <div className="bar-fill" style={{
+          width: barsVisible ? `${scorePercent}%` : "0%",
+          background: accent,
+          transition: "width 0.6s ease-out",
+        }} />
       </div>
-      <div className="text-sm leading-relaxed mt-2 markdown-prose" style={{ color: "var(--text-secondary)" }}>
+      <div className="prose" style={{ fontSize: 12.5 }}>
         <ReactMarkdown>{feedback}</ReactMarkdown>
       </div>
     </div>
   );
 }
 
-/* ── Main Component ────────────────────────────────────────── */
+/* ── Main ── */
 export default function ReviewResult() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const state = location.state;
+  const location  = useLocation();
+  const navigate  = useNavigate();
+  const state     = location.state;
+  const savedRef  = useRef(false);
+  const [displayScore, setDisplayScore] = useState(0);
+  const [arcOffset, setArcOffset] = useState(283);
+  const [barsVisible, setBarsVisible] = useState(false);
 
   if (!state?.review) return <Navigate to="/" replace />;
 
-  const { review, project, language, level, domain } = state;
+  const { review, project, language, level, domain, focusArea } = state;
 
-  function handleNextChallenge() {
-    navigate("/", { replace: true });
-  }
+  // Score color
+  const scoreColor = review.overallScore >= 80 ? "#22c55e"
+                   : review.overallScore >= 50 ? "#eab308"
+                   : "#ef4444";
+
+  useEffect(() => {
+    if (!review?.overallScore) return;
+
+    const target = review.overallScore;
+    const duration = 800;
+    const steps = 50;
+    const increment = target / steps;
+    const interval = duration / steps;
+    let current = 0;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setDisplayScore(Math.round(target));
+        clearInterval(timer);
+      } else {
+        setDisplayScore(Math.floor(current));
+      }
+    }, interval);
+
+    const circumference = 2 * Math.PI * 45;
+    const finalOffset = circumference - (target / 100) * circumference;
+    setTimeout(() => setArcOffset(finalOffset), 50);
+    setTimeout(() => setBarsVisible(true), 100);
+
+    return () => clearInterval(timer);
+  }, [review]);
+
+  // Save progress
+  useEffect(() => {
+    if (savedRef.current) return;
+    savedRef.current = true;
+    try {
+      const raw = localStorage.getItem("edtech_progress");
+      const data = raw ? JSON.parse(raw) : { sessions: [] };
+      data.sessions.push({
+        date: new Date().toISOString(),
+        projectTitle: project.title, language, domain, focusArea,
+        overallScore: review.overallScore,
+        architectureScore: review.architectureQuality.score,
+        namingScore: review.naming.score,
+        errorHandlingScore: review.errorHandling.score,
+      });
+      localStorage.setItem("edtech_progress", JSON.stringify(data));
+    } catch (e) { console.error("Failed to save progress", e); }
+  }, []);
 
   return (
-    <>
-      <div className="bg-scene" aria-hidden="true" />
+    <div className="page-enter" style={st.root}>
+      {/* ── Top bar ── */}
+      <header style={st.topBar}>
+        <button className="btn btn-ghost" style={{ padding: "5px 11px", fontSize: 13 }}
+          onClick={() => navigate(-1)}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          Editor
+        </button>
+        <div style={st.headerBadge}>
+          <svg width="12" height="12" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Code Review Complete
+        </div>
+      </header>
 
-      <div className="relative z-10 min-h-dvh p-4 sm:p-8 flex flex-col">
-        <div className="w-full max-w-5xl mx-auto pt-6 pb-16">
+      {/* ── Scroll container ── */}
+      <div style={st.scroll}>
+        <div style={st.inner}>
 
-          {/* Back */}
-          <button onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium mb-12 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
-            style={{ color: "var(--text-secondary)" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-            Back to editor
-          </button>
-
-          <div className="flex flex-col lg:flex-row gap-12 mb-12">
-            {/* Header & Score */}
-            <div className="flex-1 flex flex-col items-center justify-center lg:items-start text-center lg:text-left fade-in">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ background: "rgba(129, 140, 248, 0.1)", color: "var(--accent-indigo)", border: "1px solid rgba(129, 140, 248, 0.2)" }}>
-                Code Review Complete
-              </span>
-              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4"
-                style={{ color: "var(--text-primary)" }}>
-                {project.title}
-              </h1>
-              <div className="flex items-center gap-3">
-                 <span className="text-sm font-medium px-3 py-1 rounded-full"
-                  style={{ background: "var(--bg-card)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
-                  {language}
-                </span>
-                <span className="text-sm font-medium px-3 py-1 rounded-full"
-                  style={{ background: "var(--bg-card)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}>
-                  {domain}
-                </span>
+          {/* Row 1 — Title + Score circle */}
+          <div style={st.row1}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 style={st.title}>{project.title}</h1>
+              <div style={st.pills}>
+                <span style={st.pill}>{language}</span>
+                <span style={st.pill}>{domain}</span>
               </div>
             </div>
-
-            <div className="flex justify-center lg:justify-end fade-in fade-in-delay-1">
-              <ScoreRing score={review.overallScore} />
+            <div style={st.ringWrap}>
+              <ScoreRing score={displayScore} arcOffset={arcOffset} />
             </div>
           </div>
 
-          {/* Strengths card */}
-          <div className="glass-card mb-8 fade-in fade-in-delay-2 p-1" style={{ background: "linear-gradient(to right, rgba(52,211,153,0.05), transparent)", borderColor: "rgba(52,211,153,0.15)" }}>
-            <div className="rounded-xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-              <span className="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6"
-                style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" /></svg>
+          {/* Row 2 — Strengths: compact */}
+          <div style={st.strengthCard}>
+            <div style={st.strengthLeft}>
+              <span style={st.thumbIcon}>
+                <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                </svg>
               </span>
-              <div>
-                <h2 className="text-base font-bold tracking-wide mb-2" style={{ color: "var(--accent-emerald)", textShadow: "0 0 20px rgba(52,211,153,0.4)" }}>
-                  What You Did Well
-                </h2>
-                <div className="text-sm sm:text-base leading-relaxed markdown-prose" style={{ color: "var(--text-primary)" }}>
-                   <ReactMarkdown>{review.strengths}</ReactMarkdown>
-                </div>
-              </div>
+              <span style={{ fontWeight: 600, fontSize: 13, color: "var(--green)" }}>What You Did Well</span>
+            </div>
+            <div className="prose" style={{ flex: 1, fontSize: 13 }}>
+              <ReactMarkdown>{review.strengths}</ReactMarkdown>
             </div>
           </div>
 
-          {/* 3 Score cards grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 fade-in fade-in-delay-3">
+          {/* Row 3 — 3 Score cards */}
+          <div style={st.cards3}>
             <ScoreCard
-              title="Architecture"
-              score={review.architectureQuality.score}
-              feedback={review.architectureQuality.feedback}
-              accentColor="var(--accent-indigo)"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-indigo)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>}
+              title="Architecture" score={review.architectureQuality.score}
+              feedback={review.architectureQuality.feedback} accent="#3b82f6" barsVisible={barsVisible}
+              icon={<svg width="16" height="16" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>}
             />
             <ScoreCard
-              title="Naming Convention"
-              score={review.naming.score}
-              feedback={review.naming.feedback}
-              accentColor="var(--accent-cyan)"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>}
+              title="Naming" score={review.naming.score}
+              feedback={review.naming.feedback} accent="#22c55e" barsVisible={barsVisible}
+              icon={<svg width="16" height="16" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>}
             />
             <ScoreCard
-              title="Error Handling"
-              score={review.errorHandling.score}
-              feedback={review.errorHandling.feedback}
-              accentColor="var(--accent-amber)"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>}
+              title="Error Handling" score={review.errorHandling.score}
+              feedback={review.errorHandling.feedback} accent="#eab308" barsVisible={barsVisible}
+              icon={<svg width="16" height="16" fill="none" stroke="#eab308" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>}
             />
           </div>
 
-          {/* Improvement card */}
-          <div className="glass-card mb-12 fade-in fade-in-delay-4 overflow-hidden">
-            <div className="p-6 sm:p-8 flex flex-col md:flex-row gap-8">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-500/10 border border-indigo-500/20">
-                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-indigo)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
-                  </span>
-                  <h2 className="text-lg font-bold tracking-wide" style={{ color: "var(--accent-indigo)" }}>
-                    One Area To Improve
-                  </h2>
+          {/* Row 4 — Improvement: two columns */}
+          {review.improvement && (
+            <div className="card-2-static" style={st.improveCard}>
+              <div style={st.improveLeft}>
+                <div style={st.improveHeader}>
+                  <svg width="14" height="14" fill="none" stroke="var(--text-2)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-1)" }}>One Area To Improve</span>
                 </div>
-                <div className="text-[15px] leading-relaxed mb-6 markdown-prose" style={{ color: "var(--text-secondary)" }}>
+                <div className="prose" style={{ fontSize: 13 }}>
                   <ReactMarkdown>{review.improvement.description}</ReactMarkdown>
                 </div>
               </div>
-
               {review.improvement.codeExample && (
-                <div className="flex-1 w-full md:max-w-md rounded-xl overflow-hidden shadow-2xl"
-                  style={{ background: "#1e1e1e", border: "1px solid var(--border-subtle)" }}>
-                  <div className="px-4 py-3 flex items-center gap-2"
-                    style={{ background: "rgba(0,0,0,0.3)", borderBottom: "1px solid var(--border-subtle)" }}>
-                    <span className="w-3 h-3 rounded-full" style={{ background: "var(--accent-rose)" }} />
-                    <span className="w-3 h-3 rounded-full" style={{ background: "var(--accent-amber)" }} />
-                    <span className="w-3 h-3 rounded-full" style={{ background: "var(--accent-emerald)" }} />
-                    <span className="text-[11px] ml-2 font-mono uppercase tracking-widest font-bold" style={{ color: "var(--text-muted)" }}>Suggested Fix</span>
+                <div style={st.codeBox}>
+                  <div style={st.codeHeader}>
+                    <span style={st.codeLabel}>suggested fix</span>
                   </div>
-                  <pre className="p-5 text-sm leading-relaxed overflow-x-auto"
-                    style={{ fontFamily: "var(--font-mono)", color: "#d4d4d4" }}>
+                  <pre style={st.codePre}>
                     <code>{review.improvement.codeExample}</code>
                   </pre>
                 </div>
               )}
             </div>
-          </div>
+          )}
 
-          {/* CTA */}
-          <div className="flex justify-center fade-in fade-in-delay-5 mb-10">
-            <button
-              id="next-challenge-btn"
-              className="btn-glow px-10 py-4 shadow-[0_0_40px_rgba(99,102,241,0.25)] text-lg"
-              onClick={handleNextChallenge}
-            >
+          {/* Row 5 — Progress tracker */}
+          <ProgressTracker />
+
+          {/* Row 6 — CTA */}
+          <div style={{ display: "flex", justifyContent: "center", paddingBottom: 8 }}>
+            <button id="next-challenge-btn" className="btn btn-primary"
+              style={{ padding: "11px 28px", fontSize: 14, fontWeight: 600 }}
+              onClick={() => navigate("/", { replace: true })}>
               Start Next Challenge
-              <svg className="ml-2" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </button>
           </div>
+
         </div>
       </div>
-    </>
+    </div>
   );
 }
+
+const trafficDot = (bg) => ({ width: 10, height: 10, borderRadius: "50%", background: bg, flexShrink: 0 });
+
+const st = {
+  root: {
+    height: "100dvh",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+  topBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "10px 24px",
+    borderBottom: "1px solid var(--border)",
+    background: "var(--surface)",
+    flexShrink: 0,
+  },
+  headerBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12,
+    color: "var(--text-2)",
+    background: "var(--green-dim)",
+    border: "1px solid rgba(34,197,94,0.12)",
+    borderRadius: 999,
+    padding: "3px 11px",
+    fontWeight: 500,
+  },
+  scroll: {
+    flex: 1,
+    overflowY: "auto",
+  },
+  inner: {
+    maxWidth: 1000,
+    margin: "0 auto",
+    padding: "28px 24px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+  },
+  row1: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 24,
+  },
+  title: {
+    fontSize: "clamp(18px, 2.2vw, 26px)",
+    fontWeight: 700,
+    letterSpacing: "-0.025em",
+    color: "var(--text-1)",
+    lineHeight: 1.25,
+    marginBottom: 10,
+  },
+  pills: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  pill: {
+    fontSize: 11,
+    padding: "3px 10px",
+    background: "var(--surface-3)",
+    border: "1px solid var(--border)",
+    borderRadius: 999,
+    color: "var(--text-3)",
+  },
+  ringWrap: {
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6,
+  },
+  strengthCard: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 16,
+    padding: "16px 20px",
+    background: "var(--green-dim)",
+    border: "1px solid rgba(34,197,94,0.12)",
+    borderRadius: "var(--r-lg)",
+  },
+  strengthLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    flexShrink: 0,
+  },
+  thumbIcon: {
+    width: 32, height: 32,
+    background: "#22c55e",
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  cards3: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 14,
+  },
+  improveCard: {
+    display: "flex",
+    gap: 20,
+    padding: "20px",
+    overflow: "hidden",
+  },
+  improveLeft: {
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
+  improveHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  codeBox: {
+    width: "46%",
+    minWidth: 200,
+    flexShrink: 0,
+    background: "#0a0a0b",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--r-md)",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+  },
+  codeHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 12px",
+    borderBottom: "1px solid var(--border)",
+    background: "rgba(0,0,0,0.3)",
+  },
+  codeLabel: {
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "var(--text-3)",
+    fontFamily: "var(--mono)",
+  },
+  codePre: {
+    flex: 1,
+    overflowX: "auto",
+    overflowY: "auto",
+    padding: "14px",
+    margin: 0,
+    fontFamily: "var(--mono)",
+    fontSize: 12,
+    lineHeight: 1.6,
+    color: "#d4d4d4",
+    whiteSpace: "pre",
+    maxHeight: 220,
+  },
+  trafficDot: trafficDot,
+};

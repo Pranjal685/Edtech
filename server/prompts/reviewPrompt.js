@@ -34,7 +34,12 @@ FEEDBACK STYLE:
   "when this fails at 3am, you'll be reading logs with no idea what 'p' was"
 - Error handling feedback: Be specific about what will actually break —
   "os.popen can fail silently if the process name has spaces — you'll never know"
-- Strengths: Find something genuinely good, even in bad code.
+- Strengths: If the submitted code is clearly gibberish, random characters,
+  or contains no recognizable programming constructs at all,
+  set strengths to exactly this string:
+  "No strengths to highlight yet — this submission needs actual code to review. Start by implementing the core structure of the project."
+  Only write a genuine strength if real code was submitted.
+  If real code was submitted, find something genuinely good, even in bad code.
   "You used time.sleep which prevents CPU spinning — that's the right instinct"
 - Improvement: Give ONE concrete fix with real working code.
   Not pseudocode — actual runnable ${language} code they can use immediately.

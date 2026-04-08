@@ -1,7 +1,5 @@
 {
   "projects": {
-    "cd \"C:\\Users\\Pranjal\\OneDrive\\Desktop\\Edtech\"": "edtech-architecture-engine"
-  },
-  "targets": {},
-  "etags": {}
+    "default": "edtech-architecture-engine"
+  }
 }

@@ -1,5 +1,5 @@
 const express = require("express");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateWithRetry, GeminiQuotaError } = require("../lib/gemini");
 const { buildReviewPrompt } = require("../prompts/reviewPrompt");
 
 const router = express.Router();
@@ -12,12 +12,8 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     const prompt = buildReviewPrompt(studentCode, projectSpec, language);
-    const result = await model.generateContent(prompt);
-    const rawText = result.response.text();
+    const rawText = await generateWithRetry(prompt);
 
     // Strip markdown code fences if Gemini wraps the response
     const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
@@ -49,8 +45,12 @@ router.post("/", async (req, res) => {
 
     return res.json(parsed);
   } catch (err) {
+    if (err.name === "GeminiQuotaError") {
+      console.warn("Review quota error:", err.original?.slice(0, 120));
+      return res.status(429).json({ error: err.message });
+    }
     console.error("Review error:", err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Failed to review code. Please try again." });
   }
 });
 
